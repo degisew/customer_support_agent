@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./docker/dev/Dockerfile
+      args:
+        USER_ID: ${UID}
+        GROUP_ID: ${GID}
+    image: support_agent:dev
+    ports:
+      - 8000:8000
+    volumes:
+      - ./:/usr/src/app
+    user: "${UID}:${GID}"
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env
+
+volumes:
+  support_agent_db_data:
+  support_agent_pgadmin_data:
