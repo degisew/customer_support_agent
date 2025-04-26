@@ -1,4 +1,6 @@
 import os
+from pprint import pprint
+import random
 from dotenv import load_dotenv
 from fastapi import HTTPException
 import google.generativeai as genai
@@ -11,7 +13,6 @@ load_dotenv()
 # Configure Gemini API Key
 GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
 
-print("DAG", GEMINI_API_KEY)
 
 if not GEMINI_API_KEY:
     raise InternalInvariantError("Missing GEMINI_API_KEY in .env file.")
@@ -19,9 +20,60 @@ if not GEMINI_API_KEY:
 
 genai.configure(api_key=GEMINI_API_KEY)
 
+# # List all available models to check.
+# models = genai.list_models()
+
+# for model in models:
+#     print(model.name)
+
 
 class CustomerSupportService:
     """Service class for handling customer support AI agent interactions."""
+
+    FAKE_USERS: list[str] = ["user_1"]
+
+    # Simulate memory for each user
+    USER_MEMORY: dict[str, list[str]] = {}
+
+    @staticmethod
+    def get_random_user_id() -> str:
+        return random.choice(CustomerSupportService.FAKE_USERS)
+
+    @staticmethod
+    def update_user_memory(user_id: str, customer_query: str) -> None:
+        if user_id not in CustomerSupportService.USER_MEMORY:
+            CustomerSupportService.USER_MEMORY[user_id] = []
+
+        CustomerSupportService.USER_MEMORY[user_id].append(customer_query)
+
+        # Keep only the last 10 messages
+        if len(CustomerSupportService.USER_MEMORY[user_id]) > 10:
+            CustomerSupportService.USER_MEMORY[user_id] = (
+                CustomerSupportService.USER_MEMORY[user_id][-10:]
+            )
+
+    @staticmethod
+    def get_user_memory(user_id: str) -> list[str]:
+        return CustomerSupportService.USER_MEMORY.get(user_id, [])
+
+    @staticmethod
+    def build_prompt(user_memory: list[str], new_message: str) -> str:
+        memory_text = "\n".join([f"Customer said: {msg}" for msg in user_memory])
+
+        system_prompt = (
+            "You are an intelligent, professional customer support AI agent.\n"
+            "You ONLY respond to valid customer service queries related to products, services, or issues.\n"
+            "If a question is unrelated (like asking for poems, weather, etc.), politely say:\n"
+            '"I\'m here to assist you with customer support only. Please let me know your issue."\n'
+            "Analyze the emotional tone (e.g., angry, happy, confused). and respond accordingly\n"
+            "But Don't say I understand and I see everywhere without it's context."
+            "You have this history with the customer:\n"
+            f"{memory_text}\n\n"
+            "Now, respond to their new message:\n"
+            f"{new_message}\n\n"
+            "Respond empathetically, politely, helpfully, and under 100 words."
+        )
+        return system_prompt
 
     @staticmethod
     def generate_reply(customer_query: str) -> str:
@@ -34,17 +86,12 @@ class CustomerSupportService:
         Returns:
             str: AI-generated customer support reply.
         """
-        system_prompt = (
-            "You are an intelligent, professional customer support AI agent.\n"
-            "Analyze the emotional tone of the customer message (e.g., angry, happy, confused).\n"
-            "Respond empathetically, politely, and helpfully.\n"
-            "Keep the response clear, professional, and under 100 words.\n\n"
-            f"Customer message: {customer_query}\n\n"
-            "Your reply:"
-        )
+        user_id = CustomerSupportService.get_random_user_id()
+        user_memory = CustomerSupportService.get_user_memory(user_id)
+        prompt = CustomerSupportService.build_prompt(user_memory, customer_query)
 
-        model = genai.GenerativeModel("gemini-pro")
-        response = model.generate_content(system_prompt)
+        model = genai.GenerativeModel("gemini-1.5-pro")
+        response = model.generate_content(prompt)
         return response.text.strip()
 
     @staticmethod
@@ -70,6 +117,8 @@ class CustomerSupportService:
             return CustomerReplyResponse(reply=ai_reply)
         except Exception as e:
             error_message = str(e)
+            # TODO: This will be a logger
+            print(f"##### {error_message}")
 
             if "API key not valid" in error_message:
                 raise HTTPException(
