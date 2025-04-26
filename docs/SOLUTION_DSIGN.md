@@ -19,6 +19,7 @@ AI can handle the majority of simple queries, escalate edge cases, and stay onli
 - **Handle Session State:**    Maintain user context between follow-up interactions (Simulating memory).
 
 ## 3. High-Level Architecture
+
 ```bash
 User
    ⇅ 
