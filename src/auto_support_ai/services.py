@@ -1,9 +1,8 @@
 import os
-from pprint import pprint
 import random
 from dotenv import load_dotenv
-from fastapi import HTTPException
 import google.generativeai as genai
+from fastapi import HTTPException
 from src.core.exceptions import InternalInvariantError
 from src.auto_support_ai.schemas import CustomerQueryRequest, CustomerReplyResponse
 
@@ -20,19 +19,16 @@ if not GEMINI_API_KEY:
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-# # List all available models to check.
-# models = genai.list_models()
-
-# for model in models:
-#     print(model.name)
-
 
 class CustomerSupportService:
     """Service class for handling customer support AI agent interactions."""
 
+    # TODO: This can be enhanced in the future by adding real
+    # TODO: registration and authentication.
     FAKE_USERS: list[str] = ["user_1"]
 
-    # Simulate memory for each user
+    # TODO: This is an in-memory simulation to handle prompt history for now
+    # TODO: We will handle this in a real DB in the future.
     USER_MEMORY: dict[str, list[str]] = {}
 
     @staticmethod
@@ -66,7 +62,7 @@ class CustomerSupportService:
             "If a question is unrelated (like asking for poems, weather, etc.), politely say:\n"
             '"I\'m here to assist you with customer support only. Please let me know your issue."\n'
             "Analyze the emotional tone (e.g., angry, happy, confused). and respond accordingly\n"
-            "But Don't say I understand and I see everywhere without it's context."
+            "But Don't say 'I understand' / It's frustrating everywhere without it's context. \n"
             "You have this history with the customer:\n"
             f"{memory_text}\n\n"
             "Now, respond to their new message:\n"
@@ -86,9 +82,9 @@ class CustomerSupportService:
         Returns:
             str: AI-generated customer support reply.
         """
-        user_id = CustomerSupportService.get_random_user_id()
-        user_memory = CustomerSupportService.get_user_memory(user_id)
-        prompt = CustomerSupportService.build_prompt(user_memory, customer_query)
+        user_id: str = CustomerSupportService.get_random_user_id()
+        user_memory: list[str] = CustomerSupportService.get_user_memory(user_id)
+        prompt: str = CustomerSupportService.build_prompt(user_memory, customer_query)
 
         model = genai.GenerativeModel("gemini-1.5-pro")
         response = model.generate_content(prompt)
